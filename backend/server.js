@@ -11,6 +11,9 @@ const {
   listBuckets,
   listObjectsInBucket,
   deleteBucket,
+  getSignedUrl,
+  removeObj,
+  removeFolder,
 } = require("./s3");
 const upload = multer({ dest: "uploads/" });
 const app = express();
@@ -25,7 +28,7 @@ app.use(
 );
 app.use(express.json());
 
-// @Service: Create Bucket
+// [ + ] Create Bucket
 // @Params: /create/:bucketName
 
 app.post("/create/:bucketName", async (req, res) => {
@@ -49,7 +52,7 @@ app.post("/create/:bucketName", async (req, res) => {
   }
 });
 
-// @Service: List Bucket
+// [ + ] List Bucket
 // @Params: /listBucket
 
 app.get("/listBucket", async (req, res) => {
@@ -61,11 +64,12 @@ app.get("/listBucket", async (req, res) => {
   }
 });
 
-// @Service: Upload File In Bucket
+// [ + ] Upload File In Bucket
 // @Params: /images/:bucketName
 app.post("/images/:bucketName", upload.single("image"), async (req, res) => {
   try {
     const file = req.file;
+    console.log(file);
     const description = req.body.description;
     const bucketName = req.params.bucketName;
     const result = await uploadFile(bucketName, file);
@@ -75,17 +79,18 @@ app.post("/images/:bucketName", upload.single("image"), async (req, res) => {
   }
 });
 
-// @Service: Read File In Bucket
+// [ + ] Read File In Bucket
 // @Params: /images/:key/:bucketName
 app.get("/images/:key/:bucketName", async (req, res) => {
   const key = req.params.key;
   const bucketName = req.params.bucketName;
-  const readStream = getFile(bucketName, key);
-  // console.log(readStream);
+  // console.log(bucketName, "bucketName", key);
+  const readStream = await getFile(bucketName, key);
+  console.log(readStream);
   readStream.pipe(res);
 });
 
-// [ . ] List Object In Bucket
+// [ + ] List Object In Bucket
 // @Params: /listObj/:bucketName
 app.get("/listObj/:bucketName", async (req, res) => {
   try {
@@ -114,6 +119,51 @@ app.delete("/removeBucket/:bucketName", async (req, res) => {
     } else {
       return res.status(404).json({ message: "No Bucket Found" });
     }
+  } catch (err) {
+    res.send(err);
+  }
+});
+
+// [ + ] Remove Bucket
+// @Params: /removeBucket/:bucketName
+app.get("/signedurl/:key", async (req, res) => {
+  try {
+    // if we follow folder name then we can also put here
+    const result = await getSignedUrl(req.params.key);
+    return res.status(200).json({ result });
+  } catch (err) {
+    res.send(err);
+  }
+});
+
+// [ + ] Remove Folder/Object Inside Bucket
+// @Params: removefolder/:bucketName/:folderName
+app.delete("/removefolder/:bucketName/:folderName", async (req, res) => {
+  try {
+    // if we follow folder name then we can also put here
+    const result = await removeFolder(
+      req.params.bucketName,
+      req.params.folderName
+    );
+
+    return res.status(200).json({
+      message: `${bucketName} Bucket / ${folderName} Deleted Successfully`,
+    });
+  } catch (err) {
+    res.send(err);
+  }
+});
+
+// [ + ] Remove Object Inside Bucket
+// @Params: remove/:bucketName/:folderName
+app.delete("/remove/:bucketName/:key", async (req, res) => {
+  try {
+    // if we follow folder name then we can also put here
+    const result = await removeObj(req.params.bucketName, req.params.key);
+    console.log(result);
+    res.status(200).json({
+      message: ` Object Deleted Successfully`,
+    });
   } catch (err) {
     res.send(err);
   }
